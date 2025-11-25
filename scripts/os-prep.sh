@@ -1,15 +1,13 @@
-ssh -i <SSH_KEY_PATH> ubuntu@<PRIVATE_IP_ADDRESS>
-
-# 2. Update & install dependencies
+# Update & install dependencies
 sudo apt update && sudo apt -y upgrade
 sudo apt -y install apt-transport-https ca-certificates curl gnupg lsb-release
 
-# 3. Disable swap (kubelet requires swap off)
+# Disable swap (kubelet requires swap off)
 sudo swapoff -a
 # To make persistent:
 sudo sed -i '/ swap / s/^/#/' /etc/fstab
 
-# 4. Load kernel modules & sysctl for k8s networking (run as root)
+# Load kernel modules & sysctl for k8s networking (run as root)
 cat <<'EOF' | sudo tee /etc/modules-load.d/k8s.conf
 br_netfilter
 overlay
