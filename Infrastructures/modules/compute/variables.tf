@@ -18,8 +18,13 @@ variable "bastion_type" {
   type        = string
 }
 
-variable "k8s_sg" {
-  description = "Security group ID for EC2 instances"
+variable "k8s_control_sg" {
+  description = "Security group ID for K8s control plane"
+  type        = string
+}
+
+variable "k8s_workers_sg" {
+  description = "Security group ID for K8s worker nodes"
   type        = string
 }
 

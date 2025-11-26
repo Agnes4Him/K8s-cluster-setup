@@ -88,9 +88,9 @@ resource "aws_security_group" "bastion_sg" {
   tags = { Name = "${var.name}-bastion" }
 }
 
-resource "aws_security_group" "k8s_sg" {
-  name        = "${var.name}-k8s"
-  description = "Allow traffic from bastion to k8s nodes"
+resource "aws_security_group" "k8s_workers_sg" {
+  name        = "${var.name}-k8s-workers"
+  description = "Allow traffic to K8s worker nodes"
   vpc_id      = aws_vpc.this.id
 
   ingress {
@@ -135,41 +135,91 @@ resource "aws_security_group" "k8s_sg" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  tags = { Name = "${var.name}-k8s" }
+  tags = { Name = "${var.name}-k8s-workers" }
 }
 
-resource "aws_security_group_rule" "access_k8s_api" {
-  type            = "ingress"
-  from_port       = 6443
-  to_port         = 6443
-  protocol        = "tcp"
-  security_group_id        = aws_security_group.k8s_sg.id
-  source_security_group_id = aws_security_group.k8s_sg.id
+resource "aws_security_group" "k8s_control_sg" {
+  name        = "${var.name}-k8s"
+  description = "Allow traffic from bastion to k8s nodes"
+  vpc_id      = aws_vpc.this.id
+
+  ingress {
+    from_port       = 22
+    to_port         = 22
+    protocol        = "tcp"
+    security_groups = [aws_security_group.bastion_sg.id]
+  }
+
+  ingress {
+    from_port       = 6443
+    to_port         = 6443
+    protocol        = "tcp"
+    security_groups = [aws_security_group.bastion_sg.id, aws_security_group.k8s_workers_sg.id]
+  }
+
+  ingress {
+    from_port       = 10250
+    to_port         = 10250
+    protocol        = "tcp"
+    security_groups = [aws_security_group.bastion_sg.id, aws_security_group.k8s_workers_sg.id]
+  }
+
+  ingress {
+    from_port       = 2379
+    to_port         = 2380
+    protocol        = "tcp"
+    security_groups = [aws_security_group.bastion_sg.id, aws_security_group.k8s_workers_sg.id]
+  }
+
+  ingress {
+    from_port       = 30000
+    to_port         = 32767
+    protocol        = "tcp"
+    security_groups = [aws_security_group.bastion_sg.id, aws_security_group.k8s_workers_sg.id]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = { Name = "${var.name}-k8s-control" }
+}
+
+resource "aws_security_group_rule" "access_api" {
+  type              = "ingress"
+  from_port         = 6443
+  to_port           = 6443
+  protocol          = "tcp"
+  security_group_id = aws_security_group.k8s_workers_sg.id
+  source_security_group_id = aws_security_group.k8s_control_sg.id
 }
 
 resource "aws_security_group_rule" "access_kubelet" {
-  type            = "ingress"
-  from_port       = 10250
-  to_port         = 10250
-  protocol        = "tcp"
-  security_group_id        = aws_security_group.k8s_sg.id
-  source_security_group_id = aws_security_group.k8s_sg.id
+  type              = "ingress"
+  from_port         = 10250
+  to_port           = 10250
+  protocol          = "tcp"
+  security_group_id = aws_security_group.k8s_workers_sg.id
+  source_security_group_id = aws_security_group.k8s_control_sg.id
 }
 
 resource "aws_security_group_rule" "access_etcd" {
-  type            = "ingress"
-  from_port       = 2379
-  to_port         = 2380
-  protocol        = "tcp"
-  security_group_id        = aws_security_group.k8s_sg.id
-  source_security_group_id = aws_security_group.k8s_sg.id
+  type              = "ingress"
+  from_port         = 2379
+  to_port           = 2380
+  protocol          = "tcp"
+  security_group_id = aws_security_group.k8s_workers_sg.id
+  source_security_group_id = aws_security_group.k8s_control_sg.id
 }
 
-resource "aws_security_group_rule" "allow_nodeport" {
-  type            = "ingress"
-  from_port       = 30000
-  to_port         = 32767
-  protocol        = "tcp"
-  security_group_id        = aws_security_group.k8s_sg.id
-  source_security_group_id = aws_security_group.k8s_sg.id
+resource "aws_security_group_rule" "access_nodeport" {
+  type              = "ingress"
+  from_port         = 30000
+  to_port           = 32767
+  protocol          = "tcp"
+  security_group_id = aws_security_group.k8s_workers_sg.id
+  source_security_group_id = aws_security_group.k8s_control_sg.id
 }
